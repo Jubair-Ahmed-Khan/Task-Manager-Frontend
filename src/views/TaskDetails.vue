@@ -12,8 +12,12 @@ const router = useRouter()
 const taskStore = useTaskStore()
 const authStore = useAuthStore()
 const updatingStatus = ref(false)
+const deleting = ref(false)
 const showModal = ref(false)
 const editingTask = ref(null)
+const deleteLoading = ref(false)
+const deleteTarget = ref(null)
+const showDeleteModal = ref(false)
 
 const openEditModal = (task) => {
 
@@ -22,6 +26,20 @@ const openEditModal = (task) => {
     }
 
     showModal.value = true
+}
+
+const openDeleteModal = (task) => {
+
+    deleteTarget.value = task
+
+    showDeleteModal.value = true
+}
+
+const closeDeleteModal = () => {
+
+    showDeleteModal.value = false
+
+    deleteTarget.value = null
 }
 
 const closeModal = () => {
@@ -165,6 +183,39 @@ const updateStatus = async (newStatus) => {
 
 }
 
+const deleteTask = async () => {
+
+    deleteLoading.value = true
+
+    try {
+
+        await taskStore.deleteTask(
+            task.value.id
+        )
+
+        // Go back to task list after successful deletion
+        router.push({
+            name: 'tasks',
+        })
+
+    } catch (error) {
+
+        console.error(
+            'Failed to delete task:',
+            error
+        )
+
+        alert(
+            error.response?.data?.message ||
+            'Unable to delete task.'
+        )
+
+    } finally {
+
+        deleteLoading.value = false
+
+    }
+}
 
 const goBack = () => {
 
@@ -248,9 +299,17 @@ watch(
 
                     <button
                         type="button"
-                        class="px-4 py-2 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
+                        @click="openDeleteModal(task)"
+                        :disabled="deleteLoading"
+                        class="px-4 py-2 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Delete
+                        <span v-if="deleteLoading">
+                            Deleting...
+                        </span>
+
+                        <span v-else>
+                            Delete
+                        </span>
                     </button>
 
                 </div>
@@ -447,6 +506,54 @@ watch(
             @close="closeModal"
             @saved="handleSaved"
         />
+
+        <div v-if="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+
+            <div class="absolute inset-0 bg-black/50" @click="closeDeleteModal"></div>
+
+            <div class="relative w-full max-w-md bg-white rounded-xl shadow-xl p-6">
+
+                <h2 class="text-lg font-semibold text-gray-900">
+                    Delete Task
+                </h2>
+
+
+                <p class="mt-2 text-sm text-gray-500">
+                    Are you sure you want to delete
+                    <strong>
+                        {{ deleteTarget?.title }}
+                    </strong>?
+                    This action cannot be undone.
+                </p>
+
+
+                <div class="mt-6 flex justify-end gap-3">
+
+                    <button
+                        type="button"
+                        @click="closeDeleteModal"
+                        :disabled="deleteLoading"
+                        class="px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+
+
+                    <button
+                        type="button"
+                        @click="deleteTask"
+                        :disabled="deleteLoading"
+                        class="px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                    >
+                        {{
+                            deleteLoading ? 'Deleting...' : 'Delete'
+                        }}
+                    </button>
+
+                </div>
+
+            </div>
+    </div>
 
     </div>
 
