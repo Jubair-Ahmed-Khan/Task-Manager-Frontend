@@ -11,6 +11,7 @@ const editingTask = ref(null)
 const search = ref('')
 const status = ref('')
 const priority = ref('')
+const dueStatusFilter = ref('')
 const currentPage = ref(1)
 const perPage = ref(10)
 const employees = ref([])
@@ -54,6 +55,9 @@ const loadTasks = async () => {
         assigned_to:
             assignedTo.value || undefined,
 
+        due_status:
+            dueStatusFilter.value || undefined,
+
         page:
             currentPage.value,
 
@@ -89,7 +93,7 @@ watch(
 
 
 watch(
-    [status, priority, assignedTo],
+    [status, priority, assignedTo, dueStatusFilter,],
     () => {
 
         currentPage.value = 1
@@ -235,6 +239,29 @@ const priorityClass = (value) => {
     return ( classes[value] || 'bg-gray-100 text-gray-700')
 }
 
+const dueStatus = (task) => {
+
+    if (task.status === 'completed') {
+        return null
+    }
+
+    if (task.is_overdue) {
+        return {
+            label: 'Overdue',
+            class: 'bg-red-100 text-red-700'
+        }
+    }
+
+    if (task.is_due_soon) {
+        return {
+            label: 'Due Soon',
+            class: 'bg-orange-100 text-orange-700'
+        }
+    }
+
+    return null
+}
+
 
 /*
 |--------------------------------------------------------------------------
@@ -283,7 +310,7 @@ onMounted(async () => {
 
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
 
                 <div>
 
@@ -383,6 +410,33 @@ onMounted(async () => {
                             :value="employee.id"
                         >
                             {{ employee.name }}
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <div>
+
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Due Status
+                    </label>
+
+                    <select
+                        v-model="dueStatusFilter"
+                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+
+                        <option value="">
+                            All Due Dates
+                        </option>
+
+                        <option value="overdue">
+                            Overdue
+                        </option>
+
+                        <option value="due_soon">
+                            Due Soon
                         </option>
 
                     </select>
@@ -490,6 +544,13 @@ onMounted(async () => {
                                 >
                                     {{ task.priority }}
                                 </span>
+                                <span
+                                    v-if="dueStatus(task)"
+                                    class="px-2.5 py-1 rounded-full text-xs font-medium"
+                                    :class="dueStatus(task).class"
+                                >
+                                    {{ dueStatus(task).label }}
+                                </span>
 
                             </div>
 
@@ -509,9 +570,9 @@ onMounted(async () => {
                                 </span>
 
 
-                                <span v-if="task.is_overdue" class="font-medium text-red-600">
+                                <!-- <span v-if="task.is_overdue" class="font-medium text-red-600">
                                     Overdue
-                                </span>
+                                </span> -->
 
                             </div>
 

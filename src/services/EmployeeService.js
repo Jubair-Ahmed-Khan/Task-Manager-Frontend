@@ -6,6 +6,15 @@ const EmployeeService = {
 
     return response.data;
   },
+  async getPerformance() {
+
+    const response =
+        await api.get(
+            '/employees/performance'
+        );
+
+    return response.data;
+  },
 };
 
 export default EmployeeService;

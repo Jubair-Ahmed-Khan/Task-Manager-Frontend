@@ -75,6 +75,33 @@ const task = computed(() => {
 
 })
 
+const dueStatus = computed(() => {
+
+    if (!task.value) {
+        return null
+    }
+
+    if (task.value.status === 'completed') {
+        return null
+    }
+
+    if (task.value.is_overdue) {
+        return {
+            label: '🔴 Overdue',
+            class: 'bg-red-100 text-red-700'
+        }
+    }
+
+    if (task.value.is_due_soon) {
+        return {
+            label: '🟠 Due Soon',
+            class: 'bg-orange-100 text-orange-700'
+        }
+    }
+
+    return null
+})
+
 
 const statusLabel = (value) => {
 
@@ -431,11 +458,14 @@ watch(
 
                     </div>
 
+                    <!-- Due Date -->
+
                     <div>
 
                         <p class="text-sm font-medium text-gray-500">
                             Due Date
                         </p>
+
 
                         <p
                             class="mt-2 text-gray-900"
@@ -445,10 +475,19 @@ watch(
                                     : ''
                             "
                         >
-                            {{
-                                formatDate(task.due_date)
-                            }}
+                            {{ formatDate(task.due_date) }}
                         </p>
+
+
+                        <!-- Due Status -->
+
+                        <span
+                            v-if="dueStatus"
+                            class="inline-flex mt-2 px-3 py-1 rounded-full text-xs font-semibold"
+                            :class="dueStatus.class"
+                        >
+                            {{ dueStatus.label }}
+                        </span>
 
                     </div>
 

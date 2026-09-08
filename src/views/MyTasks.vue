@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import TaskService from "@/services/TaskService";
 
 const tasks = ref([]);
@@ -7,32 +7,134 @@ const loading = ref(false);
 const updatingTaskId = ref(null);
 const error = ref("");
 
+// Filters
+const search = ref("");
+const status = ref("");
+const priority = ref("");
+const overdue = ref(false);
+const currentPage = ref(1);
+const perPage = ref(10);
+
+const searchTimer = ref(null);
+
+
+/*
+|--------------------------------------------------------------------------
+| Load My Tasks
+|--------------------------------------------------------------------------
+*/
+
+const formatDate = (date) => {
+    if (!date) return '—'
+
+    const d = new Date(date)
+
+    const day = String(d.getDate()).padStart(2, '0')
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const year = String(d.getFullYear()).slice(-2)
+
+    return `${day}-${month}-${year}`
+}
+
 const loadMyTasks = async () => {
     loading.value = true;
     error.value = "";
 
     try {
         const response = await TaskService.getTasks({
-            page: 1,
-            per_page: 100,
+            search: search.value || undefined,
+            status: status.value === "overdue" ? undefined : status.value || undefined,
+            priority: priority.value || undefined,
+            overdue: status.value === "overdue" ? true : undefined,
+            page: currentPage.value,
+            per_page: perPage.value,
+            sort_by: "due_date",
+            sort_direction: "asc",
         });
 
-        console.log("My Tasks API Response:", response);
-
-        tasks.value = response?.data?.data ?? [];
-
-        console.log("My Tasks:", tasks.value);
+        tasks.value = response.data?.data ?? [];
 
     } catch (err) {
         console.error("Failed to load tasks:", err);
 
-        error.value = err.response?.data?.message || err.message || "Unable to load your tasks.";
+        error.value =
+            err.response?.data?.message ||
+            "Unable to load your tasks.";
     } finally {
         loading.value = false;
     }
 };
 
+const dueStatus = (task) => {
+
+    if (task.status === 'completed') {
+        return null
+    }
+
+    if (task.is_overdue) {
+        return {
+            label: '🔴 Overdue',
+            class: 'bg-red-100 text-red-700'
+        }
+    }
+
+    if (task.is_due_soon) {
+        return {
+            label: '🟠 Due Soon',
+            class: 'bg-orange-100 text-orange-700'
+        }
+    }
+
+    return null
+}
+
+/*
+|--------------------------------------------------------------------------
+| Search Watch
+|--------------------------------------------------------------------------
+*/
+
+watch(search, () => {
+
+    clearTimeout(searchTimer.value);
+
+    searchTimer.value = setTimeout(() => {
+
+        currentPage.value = 1;
+
+        loadMyTasks();
+
+    }, 500);
+
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| Filter Watch
+|--------------------------------------------------------------------------
+*/
+
+watch(
+    [status, priority, overdue],
+    () => {
+
+        currentPage.value = 1;
+
+        loadMyTasks();
+
+    }
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Change Status
+|--------------------------------------------------------------------------
+*/
+
 const changeStatus = async (task, newStatus) => {
+
     if (task.status === newStatus) {
         return;
     }
@@ -40,29 +142,157 @@ const changeStatus = async (task, newStatus) => {
     updatingTaskId.value = task.id;
 
     try {
-        const response = await TaskService.updateStatus(task.id, newStatus);
 
-        console.log("Status update response:", response);
+        const response =
+            await TaskService.updateStatus(
+                task.id,
+                newStatus
+            );
 
-        const updatedTask = response?.data;
+        const updatedTask = response.data?.data;
 
         if (updatedTask) {
-            task.status = updatedTask.status;
+
+            task.status =
+                updatedTask.status;
+
         } else {
-            task.status = newStatus;
+
+            task.status =
+                newStatus;
         }
 
     } catch (err) {
-        console.error("Status update failed:", err);
 
-        alert(err.response?.data?.message || err.message || "Unable to update task status.");
+        console.error(
+            "Status update failed:",
+            err
+        );
+
+        alert(
+            err.response?.data?.message ||
+            "Unable to update task status."
+        );
+
     } finally {
+
         updatingTaskId.value = null;
+
     }
+
 };
 
+
+/*
+|--------------------------------------------------------------------------
+| Helpers
+|--------------------------------------------------------------------------
+*/
+
+const isOverdue = (task) => {
+
+    if (
+        !task.due_date ||
+        task.status === "completed"
+    ) {
+        return false;
+    }
+
+    const today = new Date();
+
+    today.setHours(0, 0, 0, 0);
+
+    const dueDate =
+        new Date(task.due_date);
+
+    dueDate.setHours(0, 0, 0, 0);
+
+    return dueDate < today;
+};
+
+
+const isDueSoon = (task) => {
+
+    if (
+        !task.due_date ||
+        task.status === "completed"
+    ) {
+        return false;
+    }
+
+    const today = new Date();
+
+    today.setHours(0, 0, 0, 0);
+
+    const dueDate =
+        new Date(task.due_date);
+
+    dueDate.setHours(0, 0, 0, 0);
+
+    const difference =
+        Math.ceil(
+            (dueDate - today) /
+            (1000 * 60 * 60 * 24)
+        );
+
+    return difference >= 0 && difference <= 3;
+};
+
+
+const dueDateLabel = (task) => {
+
+    if (!task.due_date) {
+        return "No due date";
+    }
+
+    if (isOverdue(task)) {
+
+        return "Overdue";
+
+    }
+
+    if (isDueSoon(task)) {
+
+        const today = new Date();
+
+        today.setHours(0, 0, 0, 0);
+
+        const dueDate =
+            new Date(task.due_date);
+
+        dueDate.setHours(0, 0, 0, 0);
+
+        const days =
+            Math.ceil(
+                (dueDate - today) /
+                (1000 * 60 * 60 * 24)
+            );
+
+        if (days === 0) {
+            return "Due Today";
+        }
+
+        if (days === 1) {
+            return "Due Tomorrow";
+        }
+
+        return `Due in ${days} days`;
+    }
+
+    return task.due_date;
+};
+
+
+/*
+|--------------------------------------------------------------------------
+| Status Helper
+|--------------------------------------------------------------------------
+*/
+
 const statusClass = (status) => {
+
     switch (status) {
+
         case "pending":
             return "bg-yellow-100 text-yellow-800";
 
@@ -77,24 +307,17 @@ const statusClass = (status) => {
     }
 };
 
-const formatStatus = (status) => {
-    switch (status) {
-        case "pending":
-            return "Pending";
 
-        case "in_progress":
-            return "In Progress";
-
-        case "completed":
-            return "Completed";
-
-        default:
-            return status;
-    }
-};
+/*
+|--------------------------------------------------------------------------
+| Initial Load
+|--------------------------------------------------------------------------
+*/
 
 onMounted(() => {
+
     loadMyTasks();
+
 });
 </script>
 
@@ -119,6 +342,102 @@ onMounted(() => {
 
         <div v-if="error" class="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
             {{ error }}
+        </div>
+
+        <!-- Filters -->
+
+        <div
+            class="bg-white rounded-xl shadow p-4 mb-6"
+        >
+            <div
+                class="grid grid-cols-1 md:grid-cols-3 gap-4"
+            >
+
+                <!-- Search -->
+
+                <div>
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                        Search
+                    </label>
+
+                    <input
+                        v-model="search"
+                        type="text"
+                        placeholder="Search tasks..."
+                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    >
+                </div>
+
+
+                <!-- Status -->
+
+                <div>
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                        Status
+                    </label>
+
+                    <select
+                        v-model="status"
+                        class="w-full px-4 py-2 border rounded-lg"
+                    >
+                        <option value="">
+                            All Statuses
+                        </option>
+
+                        <option value="pending">
+                            Pending
+                        </option>
+
+                        <option value="in_progress">
+                            In Progress
+                        </option>
+
+                        <option value="completed">
+                            Completed
+                        </option>
+                        <option value="overdue">
+                            Overdue Tasks
+                        </option>
+                    </select>
+                </div>
+
+
+                <!-- Priority -->
+
+                <div>
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                        Priority
+                    </label>
+
+                    <select
+                        v-model="priority"
+                        class="w-full px-4 py-2 border rounded-lg"
+                    >
+                        <option value="">
+                            All Priorities
+                        </option>
+
+                        <option value="low">
+                            Low
+                        </option>
+
+                        <option value="medium">
+                            Medium
+                        </option>
+
+                        <option value="high">
+                            High
+                        </option>
+                    </select>
+                </div>
+
+            </div>
         </div>
 
         <div v-if="loading" class="text-center py-10 text-gray-500">
@@ -149,6 +468,11 @@ onMounted(() => {
                                 Due Date
                             </th>
 
+                            <th class="text-left px-6 py-4 min-w-38.5 whitespace-nowrap">
+                                Due Status
+                            </th>
+    
+    
                             <th class="text-left px-6 py-4">
                                 Status
                             </th>
@@ -192,7 +516,26 @@ onMounted(() => {
                             </td>
 
                             <td class="px-6 py-4 text-gray-600">
-                                {{ task.due_date || "—" }}
+                                {{ formatDate(task.due_date) || "—" }}
+                            </td>
+
+                            <td class="px-6 py-4 text-center">
+
+                                <span
+                                    v-if="dueStatus(task)"
+                                    class="px-3 py-1 rounded-full text-xs font-medium"
+                                    :class="dueStatus(task).class"
+                                >
+                                    {{ dueStatus(task).label }}
+                                </span>
+
+                                <span
+                                    v-else
+                                    class="text-gray-400 text-sm"
+                                >
+                                    —
+                                </span>
+
                             </td>
 
                             <td class="px-6 py-4">
@@ -235,7 +578,7 @@ onMounted(() => {
 
                         <tr v-if="tasks.length === 0">
 
-                            <td colspan="5" class="text-center py-10 text-gray-500">
+                            <td colspan="6" class="text-center py-10 text-gray-500">
                                 No tasks assigned to you.
                             </td>
 

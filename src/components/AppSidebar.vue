@@ -78,6 +78,14 @@ const isEmployee = computed(() => authStore.isEmployee);
                     Employees
                 </router-link>
 
+                <router-link
+                    :to="{ name: 'employee-performance' }"
+                    class="block px-4 py-3 rounded-lg transition"
+                >
+                    <!-- 📊 Employee Performance -->
+                    Employee Performance
+                </router-link>
+
             </template>
 
 

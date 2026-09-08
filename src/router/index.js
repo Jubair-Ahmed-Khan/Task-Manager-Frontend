@@ -7,6 +7,7 @@ import Tasks from "@/views/Tasks.vue";
 import MyTasks from "@/views/MyTasks.vue";
 import Employees from "@/views/Employees.vue";
 import TaskDetails from "@/views/TaskDetails.vue";
+import EmployeePerformance from "@/views/EmployeePerformance.vue";
 
 import DashboardLayout from "@/layouts/DashboardLayout.vue";
 
@@ -75,6 +76,16 @@ const router = createRouter({
                     path: "employees",
                     name: "employees",
                     component: Employees,
+                    meta: {
+                        requiresAuth: true,
+                        role: "Admin",
+                    },
+                },
+                {
+                    path: "employee-performance",
+                    name: "employee-performance",
+                    component: EmployeePerformance,
+
                     meta: {
                         requiresAuth: true,
                         role: "Admin",
