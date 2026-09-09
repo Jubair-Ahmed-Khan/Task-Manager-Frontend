@@ -476,6 +476,10 @@ onMounted(() => {
                             <th class="text-left px-6 py-4">
                                 Status
                             </th>
+
+                            <th class="text-left px-6 py-4">
+                                Actions
+                            </th>
                         </tr>
                     </thead>
 
@@ -519,11 +523,11 @@ onMounted(() => {
                                 {{ formatDate(task.due_date) || "—" }}
                             </td>
 
-                            <td class="px-6 py-4 text-center">
+                            <td class="px-6 py-4 text-center min-w-32.5 whitespace-nowrap">
 
                                 <span
                                     v-if="dueStatus(task)"
-                                    class="px-3 py-1 rounded-full text-xs font-medium"
+                                    class="inline-flex px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap"
                                     :class="dueStatus(task).class"
                                 >
                                     {{ dueStatus(task).label }}
@@ -573,12 +577,27 @@ onMounted(() => {
                                 </span>
 
                             </td>
+                            <td class="px-6 py-4">
+
+                                <RouterLink
+                                    :to="{
+                                        name: 'task-details',
+                                        params: {
+                                            id: task.id
+                                        }
+                                    }"
+                                    class="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition"
+                                >
+                                    View Details
+                                </RouterLink>
+
+                            </td>
 
                         </tr>
 
                         <tr v-if="tasks.length === 0">
 
-                            <td colspan="6" class="text-center py-10 text-gray-500">
+                            <td colspan="7" class="text-center py-10 text-gray-500">
                                 No tasks assigned to you.
                             </td>
 

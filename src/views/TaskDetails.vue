@@ -5,6 +5,7 @@ import { useRoute, useRouter, } from 'vue-router'
 import { useTaskStore } from '@/stores/task'
 import { useAuthStore } from '@/stores/auth'
 import TaskForm from '@/components/TaskForm.vue'
+import CommentService from '@/services/CommentService'
 
 
 const route = useRoute()
@@ -15,6 +16,11 @@ const updatingStatus = ref(false)
 const deleting = ref(false)
 const showModal = ref(false)
 const editingTask = ref(null)
+const comments = ref([])
+const newComment = ref('')
+const loadingComments = ref(false)
+const savingComment = ref(false)
+const commentError = ref('')
 const deleteLoading = ref(false)
 const deleteTarget = ref(null)
 const showDeleteModal = ref(false)
@@ -260,6 +266,148 @@ const loadTask = async () => {
     if (!id) return
 
     await taskStore.fetchTask(id)
+    await loadComments()
+}
+
+/*
+|--------------------------------------------------------------------------
+| Comments
+|--------------------------------------------------------------------------
+*/
+
+const loadComments = async () => {
+
+    if (!task.value?.id) {
+        return
+    }
+
+    loadingComments.value = true
+
+    commentError.value = ''
+
+    try {
+
+        const response =
+            await CommentService.getComments(
+                task.value.id
+            )
+
+        comments.value =
+            response.data?.data
+            || []
+
+    } catch (error) {
+
+        console.error(
+            'Failed to load comments:',
+            error
+        )
+
+        commentError.value =
+            error.response?.data?.message
+            || 'Failed to load comments.'
+
+    } finally {
+
+        loadingComments.value = false
+
+    }
+}
+
+
+const addComment = async () => {
+
+    if (
+        !newComment.value.trim()
+        || savingComment.value
+        || !task.value
+    ) {
+        return
+    }
+
+    savingComment.value = true
+
+    commentError.value = ''
+
+    try {
+
+        const response =
+            await CommentService.addComment(
+                task.value.id,
+                {
+                    comment:
+                        newComment.value.trim(),
+                }
+            )
+
+        /*
+        |--------------------------------------------------------------------------
+        | Add new comment immediately
+        |--------------------------------------------------------------------------
+        */
+
+        comments.value.unshift(
+            response.data.data
+        )
+
+        newComment.value = ''
+
+    } catch (error) {
+
+        console.error(
+            'Failed to add comment:',
+            error
+        )
+
+        commentError.value =
+            error.response?.data?.message
+            || 'Failed to add comment.'
+
+    } finally {
+
+        savingComment.value = false
+
+    }
+}
+
+
+const deleteComment = async (
+    comment
+) => {
+
+    const confirmed =
+        window.confirm(
+            'Are you sure you want to delete this comment?'
+        )
+
+    if (!confirmed) {
+        return
+    }
+
+    try {
+
+        await CommentService.deleteComment(
+            comment.id
+        )
+
+        comments.value =
+            comments.value.filter(
+                item => item.id !== comment.id
+            )
+
+    } catch (error) {
+
+        console.error(
+            'Failed to delete comment:',
+            error
+        )
+
+        alert(
+            error.response?.data?.message
+            || 'Failed to delete comment.'
+        )
+
+    }
 }
 
 onMounted(() => {
@@ -520,6 +668,191 @@ watch(
                             {{
                                 formatDate(task.updated_at)
                             }}
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+            <!-- ============================================================= -->
+            <!-- COMMENTS -->
+            <!-- ============================================================= -->
+
+            <div class="p-6 space-y-8 border-gray-100">
+
+                <div class="flex items-center justify-between mb-5">
+
+                    <div>
+
+                        <h2 class="text-lg font-bold text-gray-900">
+                            Discussion
+                        </h2>
+
+                        <p class="text-sm text-gray-500">
+                            Comments and updates about this task.
+                        </p>
+
+                    </div>
+
+
+                    <span
+                        class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm"
+                    >
+                        {{ comments.length }}
+                        Comments
+                    </span>
+
+                </div>
+
+
+                <!-- Add Comment -->
+
+                <div class="mb-6">
+
+                    <textarea
+                        v-model="newComment"
+                        rows="3"
+                        placeholder="Write a comment..."
+                        :disabled="savingComment"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    ></textarea>
+
+
+                    <div class="mt-3 flex justify-end">
+
+                        <button
+                            type="button"
+                            @click="addComment"
+                            :disabled="
+                                !newComment.trim()
+                                || savingComment
+                            "
+                            class="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+
+                            {{
+                                savingComment
+                                    ? 'Posting...'
+                                    : 'Post Comment'
+                            }}
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Error -->
+
+                <div
+                    v-if="commentError"
+                    class="mb-5 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
+                >
+                    {{ commentError }}
+                </div>
+
+
+                <!-- Loading -->
+
+                <div
+                    v-if="loadingComments"
+                    class="py-8 text-center text-gray-500"
+                >
+                    Loading comments...
+                </div>
+
+
+                <!-- Empty -->
+
+                <div
+                    v-else-if="comments.length === 0"
+                    class="py-8 text-center border border-dashed border-gray-300 rounded-xl"
+                >
+
+                    <div class="text-3xl mb-2">
+                        💬
+                    </div>
+
+                    <p class="text-gray-500">
+                        No comments yet.
+                    </p>
+
+                    <p class="text-sm text-gray-400 mt-1">
+                        Start the discussion about this task.
+                    </p>
+
+                </div>
+
+
+                <!-- Comment List -->
+
+                <div
+                    v-else
+                    class="space-y-4"
+                >
+
+                    <div
+                        v-for="comment in comments"
+                        :key="comment.id"
+                        class="p-4 border border-gray-100 rounded-xl bg-gray-50"
+                    >
+
+                        <!-- Header -->
+
+                        <div class="flex items-start justify-between gap-4">
+
+                            <div>
+
+                                <p class="font-semibold text-gray-900">
+
+                                    {{
+                                        comment.user?.name
+                                        || 'Unknown User'
+                                    }}
+
+                                </p>
+
+
+                                <p class="text-xs text-gray-500 mt-1">
+
+                                    {{
+                                        formatDate(
+                                            comment.created_at
+                                        )
+                                    }}
+
+                                </p>
+
+                            </div>
+
+
+                            <!-- Delete -->
+
+                            <button
+                                v-if="
+                                    isAdmin
+                                    || comment.user_id === user?.id
+                                "
+                                type="button"
+                                @click="deleteComment(comment)"
+                                class="text-sm text-red-600 hover:text-red-700"
+                            >
+                                Delete
+                            </button>
+
+                        </div>
+
+
+                        <!-- Comment -->
+
+                        <p
+                            class="mt-3 text-gray-700 whitespace-pre-line leading-6"
+                        >
+
+                            {{ comment.comment }}
+
                         </p>
 
                     </div>
