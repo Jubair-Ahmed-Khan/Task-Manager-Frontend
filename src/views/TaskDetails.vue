@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 import TaskForm from '@/components/TaskForm.vue'
 import CommentService from '@/services/CommentService'
 import TaskAttachments from "@/components/TaskAttachments.vue";
+import TaskActivityHistory from "@/components/TaskActivityHistory.vue";
 
 
 const route = useRoute()
@@ -863,6 +864,10 @@ watch(
             </div>
 
             <TaskAttachments
+                v-if="task?.id"
+                :task-id="task.id"
+            />
+            <TaskActivityHistory
                 v-if="task?.id"
                 :task-id="task.id"
             />

@@ -97,6 +97,13 @@ const TaskService = {
 
       return response.data;
   },
+  async getActivities(taskId) {
+      const response = await api.get(
+          `/tasks/${taskId}/activities`
+      );
+
+      return response.data;
+  },
 };
 
 export default TaskService;
