@@ -1,8 +1,8 @@
 <script setup>
-import { onMounted, ref, watch } from "vue";
+import { onMounted, onBeforeUnmount, ref, watch } from "vue";
 import TaskService from "@/services/TaskService";
 import EmployeeService from "@/services/EmployeeService";
-import api from "@/services/api";
+import TaskCategoryService from "@/services/TaskCategoryService";
 
 const props = defineProps({
     show: {
@@ -21,7 +21,6 @@ const emit = defineEmits([
     "saved",
 ]);
 
-
 /*
 |--------------------------------------------------------------------------
 | Form
@@ -34,9 +33,9 @@ const form = ref({
     priority: "medium",
     status: "pending",
     assigned_to: "",
+    category_id: "",
     due_date: "",
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -46,22 +45,16 @@ const form = ref({
 
 const errors = ref({});
 const loading = ref(false);
+
 const loadingEmployees = ref(false);
 const employees = ref([]);
 
-
+const loadingCategories = ref(false);
+const categories = ref([]);
 
 /*
 |--------------------------------------------------------------------------
 | Reset Form
-|--------------------------------------------------------------------------
-|
-| IMPORTANT:
-| This function is declared BEFORE watch().
-| Therefore we won't get:
-|
-| ReferenceError: Cannot access 'resetForm' before initialization
-|
 |--------------------------------------------------------------------------
 */
 
@@ -72,12 +65,12 @@ const resetForm = () => {
         priority: "medium",
         status: "pending",
         assigned_to: "",
+        category_id: "",
         due_date: "",
     };
 
     errors.value = {};
 };
-
 
 /*
 |--------------------------------------------------------------------------
@@ -86,6 +79,7 @@ const resetForm = () => {
 */
 
 const fillForm = (task) => {
+
     if (!task) {
         resetForm();
         return;
@@ -96,11 +90,18 @@ const fillForm = (task) => {
         description: task.description ?? "",
         priority: task.priority ?? "medium",
         status: task.status ?? "pending",
+
         assigned_to:
             task.assigned_to ??
             task.assigned_to_id ??
             task.assignee?.id ??
-            '',
+            "",
+
+        category_id:
+            task.category_id ??
+            task.category?.id ??
+            "",
+
         due_date: task.due_date
             ? task.due_date.substring(0, 10)
             : "",
@@ -109,49 +110,6 @@ const fillForm = (task) => {
     errors.value = {};
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| Watch Task Prop
-|--------------------------------------------------------------------------
-*/
-
-// watch(
-//     () => props.task,
-//     async (newTask) => {
-//         fillForm(newTask);
-
-//         // If editing, make sure employees are available
-//         if (newTask) {
-//             await loadEmployees();
-//         }
-//     },
-//     {
-//         immediate: true,
-//     }
-// );
-
-// watch(
-//     () => props.show,
-//     async (visible) => {
-//         if (!visible) return;
-
-//         fillForm(props.task);
-
-//         await loadEmployees();
-//     }
-// );
-watch(
-    () => props.task,
-    (newTask) => {
-        fillForm(newTask)
-    },
-    {
-        immediate: true
-    }
-)
-
-
 /*
 |--------------------------------------------------------------------------
 | Load Employees
@@ -159,33 +117,61 @@ watch(
 */
 
 const loadEmployees = async () => {
+
     loadingEmployees.value = true;
-    errors.value = "";
 
     try {
+
         const response = await EmployeeService.getEmployees();
-
-        console.log("Employee API response:", response.data);
-
         employees.value = response?.data ?? [];
-
-        console.log("Employees:", employees.value);
-
     } catch (err) {
-        console.error("Employee loading error:", err);
-        console.error("Status:", err.response?.status);
-        console.error("Response:", err.response?.data);
-
-        errors.value =
-            err.response?.data?.message ||
-            "Unable to load employees.";
-
         employees.value = [];
     } finally {
         loadingEmployees.value = false;
     }
 };
 
+/*
+|--------------------------------------------------------------------------
+| Load Categories
+|--------------------------------------------------------------------------
+*/
+
+const loadCategories = async () => {
+
+    loadingCategories.value = true;
+
+    try {
+        const response = await TaskCategoryService.getCategories(true);
+        categories.value = response?.data ?? [];
+    } catch (err) {
+        categories.value = [];
+
+    } finally {
+        loadingCategories.value = false;
+    }
+};
+
+/*
+|--------------------------------------------------------------------------
+| Watch Task
+|--------------------------------------------------------------------------
+|
+| Only fill/reset the form here.
+| API loading is handled by onMounted().
+|
+|--------------------------------------------------------------------------
+*/
+
+watch(
+    () => props.task,
+    (newTask) => {
+        fillForm(newTask);
+    },
+    {
+        immediate: true,
+    }
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -194,16 +180,19 @@ const loadEmployees = async () => {
 */
 
 const submit = async () => {
+
     loading.value = true;
     errors.value = {};
 
     try {
+
         const payload = {
             title: form.value.title,
             description: form.value.description,
             priority: form.value.priority,
             status: form.value.status,
             assigned_to: form.value.assigned_to || null,
+            category_id: form.value.category_id || null,
             due_date: form.value.due_date || null,
         };
 
@@ -227,32 +216,16 @@ const submit = async () => {
         */
 
         else {
-            await TaskService.createTask(payload);
+            await TaskService.createTask(
+                payload
+            );
         }
-
         emit("saved");
 
     } catch (err) {
-        console.error("Task save error:", err);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Laravel validation errors
-        |--------------------------------------------------------------------------
-        */
-
         if (err.response?.status === 422) {
-            errors.value =
-                err.response.data.errors ?? {};
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | General error
-        |--------------------------------------------------------------------------
-        */
-
-        else {
+            errors.value = err.response.data.errors ?? {};
+        } else {
             errors.value = {
                 general: [
                     err.response?.data?.message ??
@@ -260,11 +233,11 @@ const submit = async () => {
                 ],
             };
         }
+
     } finally {
         loading.value = false;
     }
 };
-
 
 /*
 |--------------------------------------------------------------------------
@@ -273,13 +246,13 @@ const submit = async () => {
 */
 
 const close = () => {
+
     if (loading.value) {
         return;
     }
 
     emit("close");
 };
-
 
 /*
 |--------------------------------------------------------------------------
@@ -288,22 +261,60 @@ const close = () => {
 */
 
 const handleEscape = (event) => {
+
     if (event.key === "Escape") {
         close();
     }
 };
 
+/*
+|--------------------------------------------------------------------------
+| Mounted
+|--------------------------------------------------------------------------
+*/
 
 onMounted(async () => {
-    document.addEventListener(
+
+    document.addEventListener("keydown", handleEscape);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Load Employees
+    |--------------------------------------------------------------------------
+    */
+
+    await loadEmployees();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Load Categories
+    |--------------------------------------------------------------------------
+    */
+
+    await loadCategories();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Final State
+    |--------------------------------------------------------------------------
+    */
+
+});
+
+/*
+|--------------------------------------------------------------------------
+| Before Unmount
+|--------------------------------------------------------------------------
+*/
+
+onBeforeUnmount(() => {
+
+    document.removeEventListener(
         "keydown",
         handleEscape
     );
-
-    await loadEmployees();
 });
 </script>
-
 
 <template>
 
@@ -333,21 +344,22 @@ onMounted(async () => {
             >
 
                 <div>
+
                     <h2 class="text-xl font-bold text-gray-800">
                         {{ props.task ? "Edit Task" : "Create Task" }}
                     </h2>
 
                     <p class="text-sm text-gray-500 mt-1">
+
                         {{
                             props.task
                                 ? "Update task information."
                                 : "Create and assign a new task."
                         }}
+
                     </p>
+
                 </div>
-
-
-                <!-- CLOSE -->
 
                 <button
                     type="button"
@@ -359,7 +371,6 @@ onMounted(async () => {
 
             </div>
 
-
             <!-- ===================================================== -->
             <!-- FORM -->
             <!-- ===================================================== -->
@@ -369,7 +380,7 @@ onMounted(async () => {
                 class="p-6 space-y-5"
             >
 
-                <!-- General Error -->
+                <!-- GENERAL ERROR -->
 
                 <div
                     v-if="errors.general"
@@ -377,7 +388,6 @@ onMounted(async () => {
                 >
                     {{ errors.general[0] }}
                 </div>
-
 
                 <!-- TITLE -->
 
@@ -405,7 +415,6 @@ onMounted(async () => {
 
                 </div>
 
-
                 <!-- DESCRIPTION -->
 
                 <div>
@@ -432,10 +441,11 @@ onMounted(async () => {
 
                 </div>
 
+                <!-- PRIORITY + CATEGORY -->
 
-                <!-- PRIORITY + STATUS -->
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div
+                    class="grid grid-cols-1 md:grid-cols-2 gap-5"
+                >
 
                     <!-- PRIORITY -->
 
@@ -451,6 +461,7 @@ onMounted(async () => {
                             v-model="form.priority"
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         >
+
                             <option value="low">
                                 Low
                             </option>
@@ -462,6 +473,7 @@ onMounted(async () => {
                             <option value="high">
                                 High
                             </option>
+
                         </select>
 
                         <p
@@ -473,54 +485,113 @@ onMounted(async () => {
 
                     </div>
 
-
-                    <!-- STATUS -->
+                    <!-- CATEGORY -->
 
                     <div>
 
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-2"
+                            class="block text-sm font-medium text-gray-700 mb-1"
                         >
-                            Status
+                            Category
                         </label>
 
-                        <select
-                            v-model="form.status"
-                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        <div
+                            v-if="loadingCategories"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-500"
                         >
-                            <option value="pending">
-                                Pending
+                            Loading categories...
+                        </div>
+
+                        <select
+                            v-else
+                            v-model="form.category_id"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2"
+                        >
+
+                            <option value="">
+                                Select category
                             </option>
 
-                            <option value="in_progress">
-                                In Progress
+                            <option
+                                v-for="category in categories"
+                                :key="category.id"
+                                :value="category.id"
+                            >
+                                {{ category.name }}
                             </option>
 
-                            <option value="completed">
-                                Completed
-                            </option>
-
-                            <option value="cancelled">
-                                Cancelled
-                            </option>
                         </select>
 
                         <p
-                            v-if="errors.status"
-                            class="text-sm text-red-600 mt-1"
+                            v-if="errors.category_id"
+                            class="mt-1 text-sm text-red-600"
                         >
-                            {{ errors.status[0] }}
+                            {{ errors.category_id[0] }}
+                        </p>
+
+                        <p
+                            v-if="
+                                !loadingCategories &&
+                                categories.length === 0
+                            "
+                            class="mt-1 text-sm text-orange-600"
+                        >
+                            No active categories available.
                         </p>
 
                     </div>
 
                 </div>
 
+                <!-- STATUS -->
+
+                <div>
+
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                        Status
+                    </label>
+
+                    <select
+                        v-model="form.status"
+                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    >
+
+                        <option value="pending">
+                            Pending
+                        </option>
+
+                        <option value="in_progress">
+                            In Progress
+                        </option>
+
+                        <option value="completed">
+                            Completed
+                        </option>
+
+                        <option value="cancelled">
+                            Cancelled
+                        </option>
+
+                    </select>
+
+                    <p
+                        v-if="errors.status"
+                        class="text-sm text-red-600 mt-1"
+                    >
+                        {{ errors.status[0] }}
+                    </p>
+
+                </div>
 
                 <!-- ASSIGN EMPLOYEE -->
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
+
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-2"
+                    >
                         Assign Employee
                     </label>
 
@@ -537,6 +608,7 @@ onMounted(async () => {
                         required
                         class="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
                     >
+
                         <option value="">
                             Select Employee
                         </option>
@@ -546,8 +618,10 @@ onMounted(async () => {
                             :key="employee.id"
                             :value="employee.id"
                         >
-                            {{ employee.name }} - {{ employee.email }}
+                            {{ employee.name }} -
+                            {{ employee.email }}
                         </option>
+
                     </select>
 
                     <p
@@ -558,13 +632,16 @@ onMounted(async () => {
                     </p>
 
                     <p
-                        v-else-if="!loading && employees.length === 0"
+                        v-else-if="
+                            !loading &&
+                            employees.length === 0
+                        "
                         class="mt-2 text-sm text-orange-600"
                     >
                         No employees available.
                     </p>
-                </div>
 
+                </div>
 
                 <!-- DUE DATE -->
 
@@ -591,10 +668,7 @@ onMounted(async () => {
 
                 </div>
 
-
-                <!-- ================================================= -->
                 <!-- FOOTER -->
-                <!-- ================================================= -->
 
                 <div
                     class="flex justify-end gap-3 pt-5 border-t border-gray-200"
@@ -609,12 +683,12 @@ onMounted(async () => {
                         Cancel
                     </button>
 
-
                     <button
                         type="submit"
                         :disabled="loading"
                         class="px-5 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
+
                         <span v-if="loading">
                             Saving...
                         </span>
@@ -622,6 +696,7 @@ onMounted(async () => {
                         <span v-else>
                             {{ props.task ? "Update Task" : "Create Task" }}
                         </span>
+
                     </button>
 
                 </div>

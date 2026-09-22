@@ -65,6 +65,18 @@ const isEmployee = computed(() => authStore.isEmployee);
                     Manage Tasks
                 </router-link>
 
+                <RouterLink
+                    to="/task-categories"
+                    class="block px-4 py-3 rounded-lg transition"
+                    :class="
+                        route.path.startsWith('/task-categories')
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-300 hover:bg-gray-800'
+                    "
+                >
+                    Task Categories
+                </RouterLink>
+
 
                 <router-link
                     to="/employees"
@@ -81,6 +93,11 @@ const isEmployee = computed(() => authStore.isEmployee);
                 <router-link
                     :to="{ name: 'employee-performance' }"
                     class="block px-4 py-3 rounded-lg transition"
+                    :class="
+                        route.path.startsWith('/employee-performance')
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-300 hover:bg-gray-800'
+                    "
                 >
                     <!-- 📊 Employee Performance -->
                     Employee Performance

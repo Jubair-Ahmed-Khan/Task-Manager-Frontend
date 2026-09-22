@@ -512,6 +512,30 @@ watch(
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                     <div>
+                        <p class="text-sm font-medium text-gray-500">
+                            Category
+                        </p>
+
+                        <span
+                            v-if="task.category"
+                            class="inline-flex items-center px-3 py-1 mt-1 rounded-full text-sm font-medium"
+                            :style="{
+                                backgroundColor: `${task.category.color || '#6B7280'}20`,
+                                color: task.category.color || '#6B7280'
+                            }"
+                        >
+                            {{ task.category.name }}
+                        </span>
+
+                        <span
+                            v-else
+                            class="text-gray-400"
+                        >
+                            No category
+                        </span>
+                    </div>
+
+                    <div>
 
                         <p class="text-sm font-medium text-gray-500">
                             Status

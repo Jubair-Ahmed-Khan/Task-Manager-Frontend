@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch, } from 'vue'
 import { useTaskStore } from '@/stores/task'
 import TaskForm from '@/components/TaskForm.vue'
 import EmployeeService from '@/services/EmployeeService'
+import TaskCategoryService from '@/services/TaskCategoryService'
 
 
 const taskStore = useTaskStore()
@@ -12,6 +13,9 @@ const search = ref('')
 const status = ref('')
 const priority = ref('')
 const dueStatusFilter = ref('')
+const categoryId = ref('')
+const categories = ref([])
+const loadingCategories = ref(false)
 const currentPage = ref(1)
 const perPage = ref(10)
 const employees = ref([])
@@ -39,6 +43,22 @@ const loadEmployees = async () => {
     }
 }
 
+const loadCategories = async () => {
+    loadingCategories.value = true
+
+    try {
+        const response = await TaskCategoryService.getCategories(true)
+
+        categories.value = response?.data ?? []
+    } catch (error) {
+        console.error('Failed to load categories:', error)
+
+        categories.value = []
+    } finally {
+        loadingCategories.value = false
+    }
+}
+
 const loadTasks = async () => {
 
     await taskStore.fetchTasks({
@@ -51,6 +71,9 @@ const loadTasks = async () => {
 
         priority:
             priority.value || undefined,
+
+        category_id:
+            categoryId.value || undefined,
 
         assigned_to:
             assignedTo.value || undefined,
@@ -93,7 +116,7 @@ watch(
 
 
 watch(
-    [status, priority, assignedTo, dueStatusFilter,],
+    [status, priority, categoryId, assignedTo, dueStatusFilter,],
     () => {
 
         currentPage.value = 1
@@ -272,7 +295,7 @@ const dueStatus = (task) => {
 onMounted(async () => {
 
     await loadEmployees()
-
+    await loadCategories()
     await loadTasks()
 })
 </script>
@@ -310,7 +333,7 @@ onMounted(async () => {
 
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
 
                 <div>
 
@@ -383,6 +406,34 @@ onMounted(async () => {
 
                         <option value="high">
                             High
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <div>
+
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Category
+                    </label>
+
+                    <select
+                        v-model="categoryId"
+                        :disabled="loadingCategories"
+                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                    >
+
+                        <option value="">
+                            All Categories
+                        </option>
+
+                        <option
+                            v-for="category in categories"
+                            :key="category.id"
+                            :value="category.id"
+                        >
+                            {{ category.name }}
                         </option>
 
                     </select>
@@ -543,6 +594,16 @@ onMounted(async () => {
                                     :class="priorityClass(task.priority)"
                                 >
                                     {{ task.priority }}
+                                </span>
+                                <span
+                                    v-if="task.category"
+                                    class="px-2.5 py-1 rounded-full text-xs font-medium"
+                                    :style="{
+                                        backgroundColor: `${task.category.color || '#6B7280'}20`,
+                                        color: task.category.color || '#6B7280'
+                                    }"
+                                >
+                                    {{ task.category.name }}
                                 </span>
                                 <span
                                     v-if="dueStatus(task)"

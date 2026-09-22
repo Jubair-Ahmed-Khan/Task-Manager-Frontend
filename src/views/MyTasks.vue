@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import TaskService from "@/services/TaskService";
+import TaskCategoryService from "@/services/TaskCategoryService";
 
 const tasks = ref([]);
 const loading = ref(false);
@@ -11,11 +12,50 @@ const error = ref("");
 const search = ref("");
 const status = ref("");
 const priority = ref("");
+const categoryId = ref("");
 const overdue = ref(false);
 const currentPage = ref(1);
 const perPage = ref(10);
 
+const categories = ref([]);
+const loadingCategories = ref(false);
+
 const searchTimer = ref(null);
+
+
+/*
+|--------------------------------------------------------------------------
+| Load Categories
+|--------------------------------------------------------------------------
+*/
+
+const loadCategories = async () => {
+
+    loadingCategories.value = true;
+
+    try {
+
+        const response =
+            await TaskCategoryService.getCategories(true);
+
+        categories.value =
+            response?.data ?? [];
+
+    } catch (err) {
+
+        console.error(
+            "Failed to load task categories:",
+            err
+        );
+
+        categories.value = [];
+
+    } finally {
+
+        loadingCategories.value = false;
+
+    }
+};
 
 
 /*
@@ -25,68 +65,117 @@ const searchTimer = ref(null);
 */
 
 const formatDate = (date) => {
-    if (!date) return '—'
 
-    const d = new Date(date)
+    if (!date) {
+        return "—";
+    }
 
-    const day = String(d.getDate()).padStart(2, '0')
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const year = String(d.getFullYear()).slice(-2)
+    const d = new Date(date);
 
-    return `${day}-${month}-${year}`
-}
+    const day =
+        String(d.getDate()).padStart(2, "0");
+
+    const month =
+        String(d.getMonth() + 1).padStart(2, "0");
+
+    const year =
+        String(d.getFullYear()).slice(-2);
+
+    return `${day}-${month}-${year}`;
+};
+
 
 const loadMyTasks = async () => {
+
     loading.value = true;
     error.value = "";
 
     try {
-        const response = await TaskService.getTasks({
-            search: search.value || undefined,
-            status: status.value === "overdue" ? undefined : status.value || undefined,
-            priority: priority.value || undefined,
-            overdue: status.value === "overdue" ? true : undefined,
-            page: currentPage.value,
-            per_page: perPage.value,
-            sort_by: "due_date",
-            sort_direction: "asc",
-        });
 
-        tasks.value = response.data?.data ?? [];
+        const response =
+            await TaskService.getTasks({
+
+                search:
+                    search.value || undefined,
+
+                status:
+                    status.value === "overdue"
+                        ? undefined
+                        : status.value || undefined,
+
+                priority:
+                    priority.value || undefined,
+
+                category_id:
+                    categoryId.value || undefined,
+
+                overdue:
+                    status.value === "overdue"
+                        ? true
+                        : undefined,
+
+                page:
+                    currentPage.value,
+
+                per_page:
+                    perPage.value,
+
+                sort_by:
+                    "due_date",
+
+                sort_direction:
+                    "asc",
+            });
+
+        tasks.value =
+            response.data?.data ?? [];
 
     } catch (err) {
-        console.error("Failed to load tasks:", err);
+
+        console.error(
+            "Failed to load tasks:",
+            err
+        );
 
         error.value =
             err.response?.data?.message ||
             "Unable to load your tasks.";
+
     } finally {
+
         loading.value = false;
+
     }
 };
 
+
 const dueStatus = (task) => {
 
-    if (task.status === 'completed') {
-        return null
+    if (task.status === "completed") {
+        return null;
     }
 
     if (task.is_overdue) {
+
         return {
-            label: '🔴 Overdue',
-            class: 'bg-red-100 text-red-700'
-        }
+            label: "🔴 Overdue",
+            class: "bg-red-100 text-red-700"
+        };
+
     }
 
     if (task.is_due_soon) {
+
         return {
-            label: '🟠 Due Soon',
-            class: 'bg-orange-100 text-orange-700'
-        }
+            label: "🟠 Due Soon",
+            class: "bg-orange-100 text-orange-700"
+        };
+
     }
 
-    return null
-}
+    return null;
+};
+
 
 /*
 |--------------------------------------------------------------------------
@@ -116,7 +205,12 @@ watch(search, () => {
 */
 
 watch(
-    [status, priority, overdue],
+    [
+        status,
+        priority,
+        categoryId,
+        overdue
+    ],
     () => {
 
         currentPage.value = 1;
@@ -149,7 +243,8 @@ const changeStatus = async (task, newStatus) => {
                 newStatus
             );
 
-        const updatedTask = response.data?.data;
+        const updatedTask =
+            response.data?.data;
 
         if (updatedTask) {
 
@@ -160,6 +255,7 @@ const changeStatus = async (task, newStatus) => {
 
             task.status =
                 newStatus;
+
         }
 
     } catch (err) {
@@ -246,9 +342,7 @@ const dueDateLabel = (task) => {
     }
 
     if (isOverdue(task)) {
-
         return "Overdue";
-
     }
 
     if (isDueSoon(task)) {
@@ -314,9 +408,11 @@ const statusClass = (status) => {
 |--------------------------------------------------------------------------
 */
 
-onMounted(() => {
+onMounted(async () => {
 
-    loadMyTasks();
+    await loadCategories();
+
+    await loadMyTasks();
 
 });
 </script>
@@ -350,7 +446,7 @@ onMounted(() => {
             class="bg-white rounded-xl shadow p-4 mb-6"
         >
             <div
-                class="grid grid-cols-1 md:grid-cols-3 gap-4"
+                class="grid grid-cols-1 md:grid-cols-4 gap-4"
             >
 
                 <!-- Search -->
@@ -437,6 +533,38 @@ onMounted(() => {
                     </select>
                 </div>
 
+                <!-- Category -->
+
+                <div>
+
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                        Category
+                    </label>
+
+                    <select
+                        v-model="categoryId"
+                        :disabled="loadingCategories"
+                        class="w-full px-4 py-2 border rounded-lg disabled:bg-gray-100"
+                    >
+
+                        <option value="">
+                            All Categories
+                        </option>
+
+                        <option
+                            v-for="category in categories"
+                            :key="category.id"
+                            :value="category.id"
+                        >
+                            {{ category.name }}
+                        </option>
+
+                    </select>
+
+                </div>
+
             </div>
         </div>
 
@@ -458,6 +586,10 @@ onMounted(() => {
 
                             <th class="text-left px-6 py-4">
                                 Description
+                            </th>
+
+                            <th class="text-left px-6 py-4">
+                                Category
                             </th>
 
                             <th class="text-left px-6 py-4">
@@ -497,6 +629,26 @@ onMounted(() => {
 
                             <td class="px-6 py-4 text-gray-600">
                                 {{ task.description || "—" }}
+                            </td>
+
+                            <td class="px-6 py-4 text-center min-w-32.5 whitespace-nowrap">
+                                <span
+                                    v-if="task.category"
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap"
+                                    :style="{
+                                        backgroundColor: `${task.category.color || '#6B7280'}20`,
+                                        color: task.category.color || '#6B7280'
+                                    }"
+                                >
+                                    {{ task.category.name }}
+                                </span>
+
+                                <span
+                                    v-else
+                                    class="text-gray-400"
+                                >
+                                    —
+                                </span>
                             </td>
 
                             <td class="px-6 py-4">
@@ -597,7 +749,7 @@ onMounted(() => {
 
                         <tr v-if="tasks.length === 0">
 
-                            <td colspan="7" class="text-center py-10 text-gray-500">
+                            <td colspan="8" class="text-center py-10 text-gray-500">
                                 No tasks assigned to you.
                             </td>
 
