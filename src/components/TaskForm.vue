@@ -35,6 +35,7 @@ const form = ref({
     assigned_to: "",
     category_id: "",
     due_date: "",
+    estimated_minutes: null,
 });
 
 /*
@@ -67,6 +68,7 @@ const resetForm = () => {
         assigned_to: "",
         category_id: "",
         due_date: "",
+        estimated_minutes: null,
     };
 
     errors.value = {};
@@ -105,6 +107,9 @@ const fillForm = (task) => {
         due_date: task.due_date
             ? task.due_date.substring(0, 10)
             : "",
+        
+        estimated_minutes:
+            task.estimated_minutes ?? null,
     };
 
     errors.value = {};
@@ -194,6 +199,7 @@ const submit = async () => {
             assigned_to: form.value.assigned_to || null,
             category_id: form.value.category_id || null,
             due_date: form.value.due_date || null,
+            estimated_minutes: form.value.estimated_minutes ? Number(form.value.estimated_minutes) : null,
         };
 
         /*
@@ -541,6 +547,24 @@ onBeforeUnmount(() => {
 
                     </div>
 
+                </div>
+
+                <div>
+                    <label
+                        for="estimated_minutes"
+                        class="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                        Estimated Time (minutes)
+                    </label>
+
+                    <input
+                        id="estimated_minutes"
+                        v-model.number="form.estimated_minutes"
+                        type="number"
+                        min="1"
+                        placeholder="e.g. 120"
+                        class="w-full border rounded-lg px-4 py-2"
+                    />
                 </div>
 
                 <!-- STATUS -->

@@ -83,6 +83,27 @@ const task = computed(() => {
 
 })
 
+const formattedEstimatedTime = computed(() => {
+    const minutes = Number(task.value?.estimated_minutes)
+
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+        return 'Not estimated'
+    }
+
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+
+    if (hours === 0) {
+        return `${remainingMinutes} minutes`
+    }
+
+    if (remainingMinutes === 0) {
+        return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
+    }
+
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'} ${remainingMinutes} minutes`
+})
+
 const dueStatus = computed(() => {
 
     if (!task.value) {
@@ -602,6 +623,16 @@ watch(
                             {{ task.priority }}
                         </span>
 
+                    </div>
+
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">
+                            Estimated Time
+                        </p>
+
+                        <p class="mt-2 text-lg font-semibold text-gray-900">
+                            {{ formattedEstimatedTime }}
+                        </p>
                     </div>
 
                     <div>

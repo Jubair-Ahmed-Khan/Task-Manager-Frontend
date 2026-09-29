@@ -101,6 +101,24 @@ const router = createRouter({
                         role: "Admin",
                     },
                 },
+                {
+                    path: '/analytics',
+                    name: 'analytics',
+                    component: () => import('@/views/AnalyticsDashboard.vue'),
+                    meta: {
+                        requiresAuth: true,
+                        role: 'Admin'
+                    }
+                },
+                {
+                    path: '/time-tracking',
+                    name: 'time-tracking',
+                    component: () => import('@/views/TimeTracking.vue'),
+                    meta: {
+                        requiresAuth: true,
+                        role: 'Employee'
+                    },
+                },
             ],
         },
     ],
