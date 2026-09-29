@@ -625,9 +625,7 @@ onMounted(async () => {
 
                                 <span>
                                     Due:
-                                    {{
-                                        task.due_date || 'No due date'
-                                    }}
+                                    {{ new Date(task.due_date).toLocaleDateString('en-GB') || 'No due date' }}
                                 </span>
 
 

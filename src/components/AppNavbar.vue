@@ -1,6 +1,8 @@
+
 <script setup>
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import NotificationBell from '@/components/notifications/NotificationBell.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -13,16 +15,23 @@ const logout = async () => {
 </script>
 
 <template>
-    <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-
+    <header
+        class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6"
+    >
+        <!-- Left: Application Title -->
         <div>
             <h2 class="text-lg font-semibold text-gray-800">
                 Task Management
             </h2>
         </div>
 
+        <!-- Right: Notifications, User Info, Logout -->
         <div class="flex items-center gap-4">
 
+            <!-- Notification Bell -->
+            <NotificationBell />
+
+            <!-- User Information -->
             <div
                 v-if="authStore.user"
                 class="text-right"
@@ -36,6 +45,7 @@ const logout = async () => {
                 </p>
             </div>
 
+            <!-- Logout -->
             <button
                 @click="logout"
                 class="px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition"
@@ -44,6 +54,5 @@ const logout = async () => {
             </button>
 
         </div>
-
     </header>
 </template>

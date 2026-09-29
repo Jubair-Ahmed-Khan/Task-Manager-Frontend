@@ -82,7 +82,17 @@
                             ·
                             {{ attachment.user?.name || "Unknown" }}
                             ·
-                            {{ formatDate(attachment.created_at) }}
+                            <!-- {{ formatDate(attachment.created_at) }} -->
+
+                            {{ new Date(attachment.created_at).toLocaleString('en-GB', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                                hour12: false
+                            }).replace(',', '') }}
                         </p>
                     </div>
                 </div>

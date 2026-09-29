@@ -142,7 +142,7 @@ onMounted(() => {
                                     employee.created_at
                                         ? new Date(
                                             employee.created_at
-                                        ).toLocaleDateString()
+                                        ).toLocaleDateString("en-GB")
                                         : "-"
                                 }}
 

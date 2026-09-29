@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
+import { Eye } from '@lucide/vue'
 import TaskService from "@/services/TaskService";
 import TaskCategoryService from "@/services/TaskCategoryService";
 
@@ -628,7 +629,13 @@ onMounted(async () => {
                             </td>
 
                             <td class="px-6 py-4 text-gray-600">
-                                {{ task.description || "—" }}
+                                {{
+                                    task.description
+                                        ? (task.description.length > 25
+                                            ? task.description.substring(0, 25) + '...'
+                                            : task.description)
+                                        : '—'
+                                }}
                             </td>
 
                             <td class="px-6 py-4 text-center min-w-32.5 whitespace-nowrap">
@@ -671,7 +678,7 @@ onMounted(async () => {
 
                             </td>
 
-                            <td class="px-6 py-4 text-gray-600">
+                            <td class="px-6 py-4 text-gray-600 min-w-32.5 whitespace-nowrap">
                                 {{ formatDate(task.due_date) || "—" }}
                             </td>
 
@@ -730,7 +737,6 @@ onMounted(async () => {
 
                             </td>
                             <td class="px-6 py-4">
-
                                 <RouterLink
                                     :to="{
                                         name: 'task-details',
@@ -738,11 +744,12 @@ onMounted(async () => {
                                             id: task.id
                                         }
                                     }"
-                                    class="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition"
+                                    title="View Details"
+                                    aria-label="View Details"
+                                    class="inline-flex items-center justify-center p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition"
                                 >
-                                    View Details
+                                    <Eye :size="20" />
                                 </RouterLink>
-
                             </td>
 
                         </tr>

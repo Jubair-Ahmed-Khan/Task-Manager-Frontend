@@ -1,6 +1,7 @@
 <script setup>
 import AppSidebar from '@/components/AppSidebar.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
+
 </script>
 
 <template>
